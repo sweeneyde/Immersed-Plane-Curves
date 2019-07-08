@@ -100,9 +100,11 @@ class Face(object):
 
 
 class Curve(object):
-    __slots__ = ['outside_face', 'circle_direction']
+    __slots__ = ['outside_face', 'circle_direction', 'crossings', 'whitney']
     outside_face: Face
-
+    circle_direction: direction
+    crossings: int
+    whitney: int
     CCW = direction.CCW
     CW = direction.CW
 
@@ -165,7 +167,7 @@ class Curve(object):
             if current_halfedge is start_halfedge:
                 break
 
-    def whitney(self):
+    def _get_whitney(self):
         if self.circle_direction is self.CCW:
             return 1
         if self.circle_direction is self.CW:
@@ -190,7 +192,7 @@ class Curve(object):
         return score
 
     def __len__(self):
-        return len(set(v for v, direction in self.node_iter()))
+        return self.crossings
 
     @staticmethod
     def right_direction(halfedge):
@@ -222,6 +224,9 @@ class Curve(object):
         """
 
         # Special cases for circles ====================
+
+        self.crossings += 1
+        self.whitney += 1 if self.right_direction(halfedge) else -1
 
         if self.circle_direction in (self.CCW, self.CW):
             if halfedge.face is self.outside_face:
@@ -320,6 +325,9 @@ class Curve(object):
         target = kink_next.target
         source = kink_prev_twin.target
 
+        self.crossings -= 1
+        self.whitney -= 1 if self.right_direction(in_side) else -1
+
         if kink_vertex is target:
             # degenerate to circle
             assert kink_vertex is source
@@ -377,24 +385,53 @@ class Curve(object):
         outside_face.some_edge = new_forward
         opposite_face.some_edge = new_backward
 
-    def decouple_bigon(self, bigon: Face):
-        side1 = bigon.some_edge
+    def decouple_bigon(self, bigon_side1) -> HalfEdge:
+        self.crossings -= 2
+        side1 = bigon_side1
         side2 = side1.face_next
         assert side2.face_next is side1
 
-        raise NotImplementedError()
 
-    def create_bigon(self, side1: HalfEdge, side2: HalfEdge):
+
+        raise NotImplementedError()
+        # return "new side1"
+
+    def create_bigon(self, side1: HalfEdge, side2: HalfEdge) -> HalfEdge:
+        self.crossings += 2
         assert side1.face is side2.face
         raise NotImplementedError()
+        # returns new_outside1
 
-    def invert_triangle(self, triangle: Face):
-        edge1 = Face.some_edge
-        assert edge1.face_next.face_next.face_next is edge1
+    def invert_triangle(self, triangle_edge) -> HalfEdge:
+        assert triangle_edge.face_next.face_next.face_next is triangle_edge
         raise NotImplementedError()
 
-    def z_move(self, onegon: Face, onegon_to_cutter):
-        raise NotImplementedError()
+    def z_move(self, onegon: Face, facing_cutter: HalfEdge) -> HalfEdge:
+        """move an empty 1-gon under another strand:
+        Before:
+          |
+          |h  /--\
+        --+--+---/
+          |   \---------
+        After:
+              /--\   |returned
+        -----+---/   |
+              \------+--
+                     |
+        """
+
+        bigon_outside = self.create_bigon(onegon.some_edge.twin, facing_cutter)
+        triangle_outside = self.invert_triangle(bigon_outside.face_next.twin)
+        bigon_cutter_inside = triangle_outside.face_next.twin.face_next.twin.face_prev.twin
+        return self.decouple_bigon(bigon_cutter_inside)
+
+    def is_canonical(self):
+        w = self.whitney
+        n = self.crossings
+        if w==0:
+            return n==1
+        else:
+            return n == abs(w) - 1
 
     def __str__(self):
         if self.circle_direction is self.CCW:
@@ -409,7 +446,7 @@ class Curve(object):
                 label = str(face.id)
             return label
 
-        lines = [f"{self.__class__.__name__}(w={self.whitney()}, n={len(self)})"]
+        lines = [f"{self.__class__.__name__}(w={self.whitney}, n={len(self)})"]
         for edge in self.edge_iter():
             source = str(edge.twin.target.id)
             left_face = face_label(edge.twin.face)
@@ -450,6 +487,8 @@ class Curve(object):
         # store the outside face as the "entry point".
         result = cls()
         result.outside_face = outside_face
+        result.whitney = 0
+        result.crossings = 1
         return result
 
     @classmethod
@@ -460,6 +499,8 @@ class Curve(object):
 
         result = Curve(direction)
         result.outside_face = exterior
+        result.crossings = 0
+        result.whitney = 1 if direction is cls.CCW else -1
         return result
 
     @classmethod
@@ -491,6 +532,8 @@ class Curve(object):
         # store the outside face as the "entry point".
         result = cls()
         result.outside_face = outside_face
+        result.whitney = 2 if positive else -2
+        result.crossings = 1
 
         assert result.face_edge_count(result.outside_face) == 1
         assert result.face_edge_count(result.outside_face
@@ -531,6 +574,10 @@ class Curve(object):
         nodes = {node for node, dir in node_dirs}
         assert set(node_dirs) == {(node, d) for node in nodes
                                   for d in (orientation.X, orientation.Y)}
+
+        assert self._get_whitney() == self.whitney
+        assert len(nodes) == self.crossings
+
         for v in nodes:
             # ensure 4-regularity, correct orientation of x and y
             assert v.x_out.face_prev.twin is v.y_out
@@ -558,4 +605,6 @@ if __name__ == "__main__":
     for i in range(9):
         c.unkink_onegon(c.outside_face.some_edge.twin.face_next.twin.face)
         c._check_invariants()
+        assert c.is_canonical()
+        print()
         print(c)
