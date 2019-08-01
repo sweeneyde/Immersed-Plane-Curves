@@ -10,21 +10,27 @@ class TestCurveMethods(unittest.TestCase):
             self.assertIn(-1, pair)
             self.assertNotEqual((-1, -1), pair)
             return
+        self.assertTrue(len(c) % 2 == 0)
         code = c._code
-        quadruples = set()
+        quadruples = dict()
         for i, pair2 in enumerate(code):
             pair1 = code[i - 1]
             q = tuple(pair1) + tuple(reversed(pair2))
             for i in range(4):
                 self.assertNotEqual(q[i - 1], q[i], f"{q} invalid in {c}, from {msg}")
             self.assertNotIn(q, quadruples, f"{q} duplicate in {c}, from {msg}")
-            quadruples.add(q)
+            quadruples[q] = i
 
-        for q in quadruples:
+        for q, i in quadruples.items():
+            ccw = ccw_shift(q)
+            cw = cw_shift(q)
             self.assertTrue(
-                (cw_shift(q) in quadruples) ^ (ccw_shift(q) in quadruples),
+                (ccw in quadruples) ^ (cw in quadruples),
                 f"{q}"
             )
+            other_index = quadruples.get(ccw) or quadruples.get(cw)
+            # check that the locations differ by an odd number
+            self.assertEqual((i-other_index) % 2, 0)
 
     test_curve_1 = Curve([
         # trefoil with extra kink
@@ -179,3 +185,8 @@ class TestCurveMethods(unittest.TestCase):
             j_add += p*(p+1)//2
 
             self.assertEqual(j_add, sum(1 for _ in test.increasing_j_neighbors()), test)
+
+    def test_integrated_neighbors(self):
+        for test in self.diverse_test_curves():
+            for move, c in test.neighbors():
+                self._check_invariants(c)
