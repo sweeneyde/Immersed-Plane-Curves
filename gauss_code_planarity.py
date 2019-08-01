@@ -52,7 +52,8 @@ def planar(arr):
                 return False
             elif j == -1:
                 s = -s
-            elif i > twin[j]:
+            elif twin[j] < i:
+                # make a right turn
                 s *= v(j)
                 j = twin[j]
             elif i == twin[j] and s == v(i):
