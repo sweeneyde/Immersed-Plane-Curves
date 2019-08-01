@@ -87,11 +87,13 @@ class Curve:
                     existing_val_2 = iso.get(val_1)
                     if existing_val_2 is None:
                         if val_2 in iso_range:
+                            # not injective
                             return False
                         else:
                             iso[val_1] = val_2
                             iso_range.add(val_2)
                     elif existing_val_2 != val_2:
+                        # not a function
                         return False
             return True
 
@@ -156,6 +158,9 @@ class Curve:
             else:
                 orders.add(order)
         return w
+
+    def num_vertices(self):
+        return len(self)//2
 
     def face_index(self):
         index = dict()
@@ -389,12 +394,14 @@ class Curve:
         if bigons and len(self) == 4:
             triple_eight = Curve([(0, -1), (-1, 1), (2, -1), (-1, 1)])
             eight_inside = Curve([(0, -1), (1, 0), (0, 2), (1, 0)])
-            if self in (triple_eight, eight_inside):
+            # ensure equality checks do not affect index
+            copy = Curve(self)
+            if copy in (triple_eight, eight_inside):
                 yield (Move.J_MINUS_REMOVE, Curve.canonical(1))
-            elif self in (reversed(triple_eight), reversed((eight_inside))):
+            elif copy in (reversed(triple_eight), reversed((eight_inside))):
                 yield (Move.J_MINUS_REMOVE, Curve.canonical(-1))
             else:
-                assert self in (Curve.canonical(2), Curve.canonical(-2))
+                assert copy in (Curve.canonical(2), Curve.canonical(-2))
             return
 
         def separated_bigons(i1, j1, i2, j2):
@@ -479,12 +486,12 @@ class Curve:
             yield (move_code, Curve(code))
 
     def neighbors(self):
-        yield from self.increasing_r1_neighbors()
         yield from self.decreasing_r1_neighbors()
         index = self.face_index()
-        yield from self.increasing_j_neighbors(index)
         yield from self.decreasing_j_neighbors(index)
         yield from self.strange_neighbors(index)
+        yield from self.increasing_j_neighbors(index)
+        yield from self.increasing_r1_neighbors()
 
 
 
