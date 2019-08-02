@@ -31,7 +31,8 @@ def planar(arr):
 
     while True:
 
-        # A: increment i to get to a second node occurrence
+        # A: increment i to get to a second node occurrence.
+        # Walk along the path, highlighting it as you go.
         while True:
             i += 1
             if i == len(arr):
@@ -40,15 +41,17 @@ def planar(arr):
             if i > twin[i]:
                 break
 
+        # B: Traverse the highlighted parts of the image graph.
+        # begin by bouncing off of the hilighted wall you just hit
+        # then make all right turns onto other highlighted paths.
+        # skip over "unhighlighted" things you haven't seen yet.
+        # Go all the way around the "face" back to the start's right-turn predecessor.
+        # If you make it back to i (the twin of where you started), then it's not planar.
         s = -1
         j = i
-        # B: what the fuck
-        # traverse the image graph
-
         while True:
             j += s
-            if j >= i:
-                assert j == i
+            if i== j:
                 return False
             elif j == -1:
                 s = -s
