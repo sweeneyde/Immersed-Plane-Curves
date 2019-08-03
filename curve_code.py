@@ -1,6 +1,6 @@
 from collections import deque, Counter
 from enum import Enum
-from itertools import combinations_with_replacement, combinations
+from itertools import combinations_with_replacement, combinations, count
 
 
 class Move(Enum):
@@ -493,6 +493,30 @@ class Curve:
         yield from self.increasing_j_neighbors(index)
         yield from self.increasing_r1_neighbors()
 
+    def gauss_code(self):
+        quadruples = []
+        quadruple_index = dict()
+        for i, edge2 in enumerate(self._code):
+            edge1 = self._code[i - 1]
+            order = edge2 + tuple(reversed(edge1))
+            quadruples.append(order)
+            quadruple_index[order] = i
+
+        color = count(1)
+        quadruple_colors = dict()
+        result = []
+        for q in quadruples:
+            my_color = abs(
+                quadruple_colors.get(ccw_shift(q)) \
+                or quadruple_colors.get(cw_shift(q)) \
+                or next(color)
+            )
+            if cw_shift(q) in quadruple_index:
+                my_color *= -1
+            result.append(my_color)
+            quadruple_colors[q] = my_color
+
+        return result
 
 
     def _check_invariants(self):

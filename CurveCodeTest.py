@@ -1,7 +1,7 @@
 import unittest
 from curve_code import Curve, Move, cw_shift, ccw_shift
 import itertools
-
+from gauss_code_planarity import planar
 
 class TestCurveMethods(unittest.TestCase):
     def _check_invariants(self, c: Curve, msg=""):
@@ -10,6 +10,7 @@ class TestCurveMethods(unittest.TestCase):
             self.assertIn(-1, pair)
             self.assertNotEqual((-1, -1), pair)
             return
+
         self.assertTrue(len(c) % 2 == 0)
         code = c._code
         quadruples = dict()
@@ -31,6 +32,9 @@ class TestCurveMethods(unittest.TestCase):
             other_index = quadruples.get(ccw) or quadruples.get(cw)
             # check that the locations differ by an odd number
             self.assertEqual((i-other_index) % 2, 0)
+
+        self.assertTrue(planar(c.gauss_code()))
+
 
     test_curve_1 = Curve([
         # trefoil with extra kink
