@@ -26,9 +26,9 @@ def planar(arr):
                 yield i
 
     for i in second_time_indices():
-        j, dj = i, -1
         # On the image-graph of the path from 0 to i,
         # traverse a face by only making right turns.
+        j, dj = i, -1
         while True:
             j += dj
             if j == -1:
@@ -45,6 +45,8 @@ def planar(arr):
             elif right_turn(j, dj) == (i, -1):
                 # We walked around the whole face.
                 break
+
+    # This necessary condition is also sufficient.
     return True
 
 
